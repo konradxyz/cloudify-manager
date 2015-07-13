@@ -97,6 +97,12 @@ def prepare_configuration(ctx, cloudify_agent):
     # runtime info
     cloudify_agent['name'] = ctx.instance.id
     cloudify_agent['host'] = _get_machine_ip(ctx)
+    cloudify_agent['base_dir'] = 'C:\CloudifyAgent{}'.format(ctx.bootstrap_context.manager_uid)
+    cloudify_agent['service_name'] = 'CloudifyAgent{}'.format(ctx.bootstrap_context.manager_uid)
+    cloudify_agent['exec_file'] = 'CloudifyAgent{}.exe'.format(ctx.bootstrap_context.manager_uid)
+
+    with open('/tmp/log', 'a') as f:
+        f.write('installing\n')
 
 
 def set_bootstrap_context_parameters(bootstrap_context, cloudify_agent):
