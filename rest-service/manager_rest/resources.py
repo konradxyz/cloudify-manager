@@ -29,6 +29,7 @@ from setuptools import archive_util
 
 import elasticsearch
 from flask import (
+    send_file,
     request,
     make_response,
     current_app as app
@@ -51,6 +52,9 @@ from manager_rest.storage_manager import get_storage_manager
 from manager_rest.blueprints_manager import (DslParseException,
                                              get_blueprints_manager)
 from manager_rest import get_version_data
+
+from cloudify_install_agents import utils as agent_utils
+
 
 CONVENTION_APPLICATION_BLUEPRINT_FILE = 'blueprint.yaml'
 
@@ -183,6 +187,8 @@ def setup_resources(api):
         Nodes: 'nodes',
         NodeInstances: 'node-instances',
         NodeInstancesId: 'node-instances/<string:node_instance_id>',
+        NodeInstancesIdInstallAgent: 'node-instances/<string:node_instance_id>'
+                                     '/install_agent.py',
         Events: 'events',
         Search: 'search',
         Status: 'status',
@@ -1156,6 +1162,20 @@ class NodeInstancesId(SecuredResource):
         return responses.NodeInstance(
             **get_storage_manager().get_node_instance(
                 node_instance_id).to_dict())
+
+
+class NodeInstancesIdInstallAgent(SecuredResource):
+
+    @exceptions_handled
+    def get(self, node_instance_id):
+        node_instance = get_storage_manager().get_node_instance(
+            node_instance_id)
+        if 'new_cloudify_agent' not in node_instance.runtime_properties:
+            raise manager_exceptions.BadParametersError(
+                'Node instance does not contain new agent configuration.')
+        agent = node_instance.runtime_properties['new_cloudify_agent']
+        script_path = agent_utils.prepare_script(agent)
+        return send_file(script_path)
 
 
 class DeploymentsIdOutputs(SecuredResource):
