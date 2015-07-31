@@ -53,8 +53,6 @@ from manager_rest.blueprints_manager import (DslParseException,
                                              get_blueprints_manager)
 from manager_rest import get_version_data
 
-from cloudify_install_agents import utils as agent_utils
-
 
 CONVENTION_APPLICATION_BLUEPRINT_FILE = 'blueprint.yaml'
 
@@ -1174,7 +1172,7 @@ class NodeInstancesIdInstallAgent(SecuredResource):
             raise manager_exceptions.BadParametersError(
                 'Node instance does not contain new agent configuration.')
         agent = node_instance.runtime_properties['new_cloudify_agent']
-        script_path = agent_utils.prepare_script(agent)
+        script_path = utils.prepare_agent_installation_script(agent)
         return send_file(script_path)
 
 
