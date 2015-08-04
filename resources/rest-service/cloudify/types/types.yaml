@@ -407,7 +407,7 @@ workflows:
         default: true
 
   install_new_agents:
-      mapping: agent.cloudify_agent.operations.install_new_agents
+      mapping: default_workflows.cloudify.plugins.workflows.install_new_agents
 ##################################################################################
 # Base artifact definitions
 ##################################################################################
