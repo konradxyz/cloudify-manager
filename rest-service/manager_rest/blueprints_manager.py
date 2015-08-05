@@ -24,8 +24,7 @@ from dsl_parser import exceptions as parser_exceptions
 from dsl_parser import functions
 from dsl_parser import tasks
 from dsl_parser.constants import DEPLOYMENT_PLUGINS_TO_INSTALL
-from manager_rest import models
-from manager_rest import manager_exceptions
+from manager_rest import (models, config, responses, manager_exceptions)
 from manager_rest.workflow_client import workflow_client
 from manager_rest.storage_manager import get_storage_manager
 from manager_rest.utils import maybe_register_teardown
@@ -103,6 +102,31 @@ class BlueprintsManager(object):
                     kwargs)
 
         return self.sm.update_execution_status(execution_id, status, error)
+
+    def create_snapshot(self, snapshot_id):
+        wf_result = self._execute_system_wide_workflow(
+            'create_snapshot',
+            'cloudify_system_workflows.snapshot.create',
+            {
+                'snapshot_id': snapshot_id,
+                'config': config.instance().to_dict()
+            }
+        ).get()
+        return responses.Snapshot(**wf_result)
+
+    def restore_snapshot(self, snapshot_id):
+        async_task = self._execute_system_wide_workflow(
+            'restore_snapshot',
+            'cloudify_system_workflows.snapshot.restore',
+            {
+                'snapshot_id': snapshot_id,
+                'config': config.instance().to_dict()
+            }
+        )
+        result = async_task.get()
+        # This should become part of the workflow..
+        self.recreate_deployments_enviroments()
+        return result
 
     def publish_blueprint(self, dsl_location,
                           resources_base_url, blueprint_id):
@@ -237,6 +261,31 @@ class BlueprintsManager(object):
             execution_parameters=execution_parameters)
 
         return new_execution
+
+    def _execute_system_wide_workflow(self, wf_id, task_mapping,
+                    execution_parameters=None, created_at=None):
+
+        execution_id = str(uuid.uuid4())
+        execution_parameters = execution_parameters or {}
+
+        execution = models.Execution(
+            id=execution_id,
+            status=models.Execution.PENDING,
+            created_at=created_at or str(datetime.now()),
+            blueprint_id=None,
+            workflow_id=wf_id,
+            deployment_id=None,
+            error='',
+            parameters=self._get_only_user_execution_parameters(
+                execution_parameters),
+            is_system_workflow=True)
+
+        self.sm.put_execution(execution.id, execution)
+
+        async_task = workflow_client().execute_system_wide_workflow(
+            wf_id, execution_id, task_mapping, execution_parameters)
+
+        return async_task
 
     def _execute_system_workflow(self, deployment, wf_id, task_mapping,
                                  execution_parameters=None, timeout=0,
@@ -762,6 +811,22 @@ class BlueprintsManager(object):
                 'Unexpected deployment status for deployment {0} '
                 '[status={1}]'.format(deployment_id, status))
 
+    # For restore snapshot purpose. To that moment elasticsearch has to be
+    # already restored.
+    def recreate_deployments_enviroments(self):
+        cr_dep_env_tasks = []
+        for dep in self.deployments_list():
+            blueprint = self.get_blueprint(dep.blueprint_id)
+            plan = blueprint.plan
+            deployment_plan = tasks.prepare_deployment_plan(plan,
+                                                            dep.inputs)
+
+            cr_dep_env_tasks.append(
+                self._create_deployment_environment(dep, deployment_plan)
+            )
+        for task in cr_dep_env_tasks:
+            task.get()
+
     def _create_deployment_environment(self, deployment, deployment_plan):
         wf_id = 'create_deployment_environment'
         deployment_env_creation_task_name = \
@@ -779,7 +844,7 @@ class BlueprintsManager(object):
             },
         }
 
-        self._execute_system_workflow(
+        return self._execute_system_workflow(
             deployment, wf_id, deployment_env_creation_task_name, kwargs)
 
     def _delete_deployment_environment(self, deployment_id):
