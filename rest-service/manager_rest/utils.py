@@ -17,10 +17,13 @@ import sys
 import logging
 import shutil
 import importlib
+import pkg_resources
+import tempfile
 import traceback
 import StringIO
 from os import path
 from flask.ext.restful import abort
+
 
 
 def setup_logger(logger_name, logger_level=logging.DEBUG, handlers=None,
@@ -138,3 +141,17 @@ def abort_error(error, logger, hide_server_message=False):
           message=str(error),
           error_code=error.error_code,
           server_traceback=s_traceback.getvalue())
+
+
+def prepare_agent_installation_script(agent, dest_path=None):
+    if dest_path is None:
+        _, dest_path = tempfile.mkstemp(prefix='install_agent', suffix='.py')
+    script_path = pkg_resources.resource_filename(
+        'manager_rest',
+        'resources/install_agent.py.template')
+    agent_repr = repr(agent)
+    in_script = open(script_path).read()
+    out_script = in_script.replace('__AGENT_DESCRIPTION__', agent_repr)
+    with open(dest_path, 'w') as out_file:
+        out_file.write(out_script)
+    return dest_path
