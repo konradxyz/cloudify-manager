@@ -156,6 +156,10 @@ class Installer(object):
         self.runner.run(command, execution_env)
 
     def run_daemon_command(self, command, execution_env=None):
+        execution_env = execution_env or {}
+        # Because celery is very persistent and will always try to use this
+        # env variable instead of using parameters it receives:
+        execution_env['CELERY_BROKER_URL'] = self.cloudify_agent['broker_url']
         return self.run_agent_command(command='daemons {0} --name={1}'
                                       .format(command,
                                               self.cloudify_agent['name']),
