@@ -13,8 +13,10 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
+from manager_rest.serialization import SerializableObjectBase
 
-class Config(object):
+
+class Config(SerializableObjectBase):
 
     def __init__(self):
         self._db_address = 'localhost'
@@ -24,6 +26,7 @@ class Config(object):
         self._file_server_base_uri = None
         self._file_server_blueprints_folder = None
         self._file_server_uploaded_blueprints_folder = None
+        self._file_server_uploaded_snapshots_folder = None
         self._file_server_resources_uri = None
         self._rest_service_log_level = None
         self._rest_service_log_path = None
@@ -95,6 +98,14 @@ class Config(object):
     @file_server_uploaded_blueprints_folder.setter
     def file_server_uploaded_blueprints_folder(self, value):
         self._file_server_uploaded_blueprints_folder = value
+
+    @property
+    def file_server_uploaded_snapshots_folder(self):
+        return self._file_server_uploaded_snapshots_folder
+
+    @file_server_uploaded_snapshots_folder.setter
+    def file_server_uploaded_snapshots_folder(self, value):
+        self._file_server_uploaded_snapshots_folder = value
 
     @property
     def file_server_resources_uri(self):
