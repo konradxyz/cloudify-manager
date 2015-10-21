@@ -45,6 +45,7 @@ def validate(session_config):
     if 'password' not in session_config:
         raise ValueError('Missing password in session_config')
 
+from winrm.protocol import Protocol
 
 class WinRMRunner(object):
 
@@ -63,6 +64,7 @@ class WinRMRunner(object):
 
         self.session_config = session_config
         self.session = self._create_session()
+        self.session.protocol = Protocol(session_config['uri'], username=session_config['user'], password=session_config['password'], transport=session_config['transport'])
         self.logger = logger
 
         if validate_connection:
@@ -85,6 +87,7 @@ class WinRMRunner(object):
             self.session_config['port'],
             self.session_config['uri'])
         return winrm.Session(url=winrm_url,
+#                             transport=self.session_config['transport'],
                              auth=(self.session_config['user'],
                                    self.session_config['password']))
 
